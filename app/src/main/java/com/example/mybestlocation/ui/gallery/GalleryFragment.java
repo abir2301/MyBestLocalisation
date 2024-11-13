@@ -73,7 +73,7 @@ public class GalleryFragment extends Fragment {
 
         @Override
         protected Object doInBackground(Object[] objects) {
-            String ip = "192.168.1.19";
+            String ip = "192.168.163.121";
             String url ="http://"+ip+"/tp_mobile/get_all_user.php";
             JSONParser parser = new JSONParser();
             JSONObject response = parser.makeRequest(url);

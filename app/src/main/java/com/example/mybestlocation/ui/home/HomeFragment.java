@@ -2,6 +2,8 @@ package com.example.mybestlocation.ui.home;
 
 import static android.text.TextUtils.replace;
 
+import static java.lang.Thread.sleep;
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
@@ -9,6 +11,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -16,6 +19,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -35,71 +39,50 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnSuccessListener;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.HashMap;
 import java.util.concurrent.Executor;
 
 public class HomeFragment extends Fragment {
 
     private FragmentHomeBinding binding;
-    private Button new_btn, map_btn;
-    private TextView lon, lat , desc ;
 
-    private FusedLocationProviderClient fusedLocationClient;
 
     // FusedLocationProviderClient mClient= LocationServices.getFusedLocationProviderClient(this.getApplicationContext() );
 
     @SuppressLint("MissingPermission")
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
-        View root = inflater.inflate(R.layout.fragment_home, container, false);
-        new_btn = root.findViewById(R.id.new_btn);
-        map_btn = root.findViewById(R.id.map_btn);
-        lon = root.findViewById(R.id.lon);
-        lat = root.findViewById(R.id.lat);
-        desc = root.findViewById(R.id.desc);
 
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(getActivity());
+        binding = FragmentHomeBinding.inflate(inflater,container,false);
+        View root = binding.getRoot();
 
 
-        map_btn.setOnClickListener(new View.OnClickListener() {
+        binding.mapBtn.setOnClickListener(new View.OnClickListener() {
+
             @Override
-            public void onClick(View view) {
-                if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                    fusedLocationClient.getLastLocation()
-                            .addOnSuccessListener(requireActivity(), new OnSuccessListener<Location>() {
-                                @Override
-                                public void onSuccess(Location location) {
-                                    if (location != null) {
-                                        String  latitude = Double. toString(
-                                        location.getLatitude());
-                                        String  longitude = Double. toString(location.getLongitude());
-
-                                        lon.setText(longitude);
-                                        lat.setText(latitude);
-                                    } else {
-                                        // La localisation est null, cela peut arriver dans certaines situations rares
-                                        lon.setText("Dernière localisation indisponible");
-                                        lat.setText("Dernière localisation indisponible");
-                                    }
-                                }
-                            });
-                } else {
-                    ActivityCompat.requestPermissions(requireActivity(), new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 100);
-
-                    lon.setText("Dernière localisation ");
-                    lat.setText("Dernière localisation ");
-                }
-
+            public void onClick(View v) {
+                String latitude = binding.lon.getText().toString();
+                String longitude = binding.lat.getText().toString();
+                String description = binding.desc.getText().toString();
+                System.out.println(longitude+latitude);
+                String strUri = "http://maps.google.com/maps?q=loc:" + latitude + "," + longitude + " (" + "Label which you want" + ")";
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(strUri));
+                intent.setClassName("com.google.android.apps.maps", "com.google.android.maps.MapsActivity");
+                startActivity(intent);
             }
         });
 
-new_btn.setOnClickListener(new View.OnClickListener(){
-    @Override
-    public void onClick(View view) {
-        Ajout a = new Ajout(getActivity());
-        a.execute();
-    }
+binding.newBtn.setOnClickListener(view -> {
+    Ajout a = new Ajout(getActivity());
+    HashMap<String, String> map = new HashMap<>();
+    map.put("longitude" ,  binding.lon.getText().toString());
+    map.put("latitude" , binding.lat.getText().toString());
+    map.put("description" ,  binding.desc.getText().toString());
+    a.setMap(map);
+    a.execute();
 });
 
 
@@ -119,12 +102,20 @@ new_btn.setOnClickListener(new View.OnClickListener(){
 
         Context con;
         AlertDialog alert ;
+        HashMap<String, String> map  ;
+        JSONParser parser ;
+
+        public void setMap(HashMap map) {
+            this.map = map;
+        }
+
         Ajout(Context con){
             this.con = con ;
         }
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
+            parser = new JSONParser();
             AlertDialog.Builder dialog = new AlertDialog.Builder(con);
             dialog.setTitle(" alert");
             dialog.setMessage("waiting for data");
@@ -134,15 +125,17 @@ new_btn.setOnClickListener(new View.OnClickListener(){
 
         @Override
         protected Object doInBackground(Object[] objects) {
-            String ip = "192.168.1.19";
-            String url ="http://"+ip+"/tp_mobile/ajout_position.php?longitude="+lon.getText()+"&latitude="+lat.getText()+"&description="+desc.getText()+"";
-            JSONParser parser = new JSONParser();
-            JSONObject response = parser.makeRequest(url);
+            System.out.println(map);
+            String ip = "192.168.163.121";
+
+            String url ="http://"+ip+"/tp_mobile/ajout_position.php";
+            JSONObject response = parser.makeHttpRequest(url , "POST",map );
             try {
                 int success = response.getInt("success");
                 if(success ==0){
-                    String msg = response.getString("message");
+                    System.out.println(success);
                 }else {
+                    System.out.println(success);
                 }
             }catch (Exception e){
 
@@ -153,7 +146,7 @@ new_btn.setOnClickListener(new View.OnClickListener(){
 
             try {
 
-                Thread.sleep(1000);
+                sleep(1000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -162,7 +155,17 @@ new_btn.setOnClickListener(new View.OnClickListener(){
 
         @Override
         protected void onPostExecute(Object o) {
-            
+            alert.dismiss();
+            AlertDialog.Builder dialog = new AlertDialog.Builder(con);
+            dialog.setTitle(" alert");
+            dialog.setMessage("done");
+            alert=dialog.create();
+            alert.show();
+            try {
+                sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             alert.dismiss();
         }
     }

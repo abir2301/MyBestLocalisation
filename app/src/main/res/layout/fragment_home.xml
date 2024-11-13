@@ -81,6 +81,5 @@
         android:layout_weight="1"
         android:ems="10"
         android:inputType="text"
-        android:text="Description de l'emplacement"
         android:textColor="#6A6A6A" />
 </LinearLayout>
